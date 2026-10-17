@@ -42,6 +42,7 @@ WADCRC.BIN
 CMakeUserPresets.json
 
 # Runtime and investigation data
+/.private/
 /hdd/
 /savedata/
 /runtime-data/

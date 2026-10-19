@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/OAleex/ShaolinMonksRecomp/releases"><img src="https://img.shields.io/badge/Download-Windows_x64-2563eb?style=for-the-badge&amp;logo=windows11&amp;logoColor=white" alt="Download for Windows x64"></a>
+  <a href="https://github.com/OAleex/ShaolinMonksRecomp/releases"><img src="https://img.shields.io/badge/Download-Releases-2563eb?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="Download Shaolin Monks Recomp"></a>
   <a href="https://github.com/OAleex/ShaolinMonksRecomp/releases"><img src="https://img.shields.io/github/downloads/OAleex/ShaolinMonksRecomp/total?style=for-the-badge&amp;logo=github&amp;label=Release%20downloads" alt="Total GitHub release downloads"></a>
   <a href="https://github.com/OAleex/ShaolinMonksRecomp/releases"><img src="https://img.shields.io/github/v/release/OAleex/ShaolinMonksRecomp?include_prereleases&amp;sort=semver&amp;style=for-the-badge&amp;label=Latest%20release" alt="Latest GitHub release, including prereleases"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--2.0--or--later-blue?style=for-the-badge" alt="GPL-2.0-or-later license"></a>
@@ -15,41 +15,34 @@
 > Shaolin Monks Recomp does not include the original game or its assets.
 > You must provide your own legally obtained **USA/Europe Xbox copy of Mortal Kombat: Shaolin Monks**.
 
-**A native Windows PC port of Mortal Kombat: Shaolin Monks, made through static recompilation.**
+**A PC port of Mortal Kombat: Shaolin Monks, made through static recompilation.**
 
-The original Xbox code runs directly on the PC, without an Xbox emulator, with graphics through Direct3D 12.
+The original Xbox code runs natively on the PC.
 The port adds resolution and render scale settings, display modes, keyboard and mouse input, and remappable controller buttons.
 
-The campaign is playable from start to finish. Some graphical issues remain, with fixes planned for future builds.
+The maintainer reports a completed campaign playthrough. Some graphical issues remain.
 
-**Bonus content:** **Mortal Kombat II** and **The Suffering Demo** are not playable yet. Support is planned for a future update.
+**Mortal Kombat II** and **The Suffering Demo** do not run.
 
 ## System requirements
 
 | Component | Requirement |
 | --- | --- |
 | CPU | x64 processor with SSE4.2 and POPCNT |
-| GPU | Direct3D 12-compatible GPU |
+| System | Windows 10 version 1903 or later, or Linux with glibc 2.38 or later |
+| GPU | Direct3D 12, or Vulkan 1.3. Vulkan 1.2 requires dynamic rendering. |
 | Input | Keyboard and mouse, or a compatible controller |
 | Game files | Original USA/Europe Xbox release |
 
-## Platform support
-
-| Operating system | Status |
-| --- | --- |
-| Windows 10 x64, version 1903 or later | Supported |
-| Windows 11 x64 | Supported |
-| Linux x86_64 | Coming soon |
-| macOS | Not supported yet |
-
 ## Getting started
 
-1. Extract the Windows release ZIP.
-2. Run `ShaolinMonksRecomp.exe`.
-3. Select your ISO, XISO, ZIP, extracted game folder, or `default.xbe`.
-4. Choose your settings, then select **Save and Play**.
+1. Download the [release package](https://github.com/OAleex/ShaolinMonksRecomp/releases) for your system.
+2. Extract the package.
+3. Start the executable in the extracted folder.
+4. Select your ISO, XISO, ZIP, extracted game folder, or `default.xbe`.
+5. Select **Save and Play** in the launcher.
 
-ISO and XISO images are read directly. ZIP contents are imported once.
+The runtime reads ISO and XISO images directly. Setup imports ZIP contents once.
 Keep the selected image or complete game folder available. You can change it in the launcher's **Files and support** tab.
 
 ## Controls
@@ -79,37 +72,54 @@ See [controller settings](docs/CONTROLLERS.md) for mappings, vibration, and conn
 
 ## Languages
 
-| Language | Interface | Subtitles | Voice acting |
-| --- | --- | --- | --- |
-| English | Yes | Yes | Yes |
-| French | Yes | Yes | Yes |
-| German | Yes | Yes | Yes |
-| Spanish | Yes | Yes | Yes |
-| Italian | Yes | Yes | Yes |
-| Brazilian Portuguese | Coming soon | Coming soon | Coming soon |
+| Language | Interface | Voice acting |
+| --- | --- | --- |
+| English | Available | Available |
+| French | Available | Available |
+| German | Available | Available |
+| Spanish | Available | Available |
+| Italian | Available | Available |
+| Brazilian Portuguese | Available | Available |
+
+Some languages require a [language pack](docs/LANGUAGE_PACKS.md).
+
+## Mods
+
+The launcher reads the official mod catalog from the [Krypt](https://github.com/OAleex/ShaolinMonksRecompKrypt).
+It checks for mod updates when it opens.
+Manage installed mods in **Mods**, or use **Install from file...** for a local `.tar.xz` package.
+A failed installation preserves the previous mod.
+New mods and languages appear from the catalog. See [mod authoring](docs/MODS.md) for supported content and routine changes.
 
 ## User files
 
-| Data | Default location |
-| --- | --- |
-| Saves | Windows Saved Games folder: `Shaolin Monks\hdd` |
-| Configuration | `%LOCALAPPDATA%\Shaolin Monks Recomp\settings.toml` |
-| Logs | `%LOCALAPPDATA%\Shaolin Monks Recomp\logs` |
-| Crash reports | `%LOCALAPPDATA%\Shaolin Monks Recomp\crashes` |
+Open **Files and support** to view your data and saves folders.
 
-Error messages identify the session log. Closing the message opens `%LOCALAPPDATA%\Shaolin Monks Recomp`.
-Include that log when you report a problem.
+| Folder | Contents |
+| --- | --- |
+| Data | Settings, logs, cache, crash reports, mods and imported ZIP games |
+| Saves | The `hdd` folder, including save backups |
+
+To move a folder, close other copies of the game and launcher first.
+Choose an empty destination in **Files and support**. Save your settings. Restart the launcher to move the files.
+See [troubleshooting](docs/TROUBLESHOOTING.md#folders) for default paths and command-line options.
+
+Error dialogs identify the session log. Include that log when you report a problem.
 
 ## Credits
 
 - [TGP482 / XboxXBERecomp](https://github.com/TGP482/XboxXBERecomp): static recompiler and Xbox runtime.
 - [LLVM / Clang](https://llvm.org/): native code compilation.
 - [Ghidra](https://github.com/NationalSecurityAgency/ghidra): executable analysis and function inspection.
-- [SDL](https://github.com/libsdl-org/SDL): controller input and device detection.
+- [SDL](https://github.com/libsdl-org/SDL): controller input, device detection and platform services.
+- [Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers) and [glslang](https://github.com/KhronosGroup/glslang): graphics headers and shader compilation.
 - [Dear ImGui](https://github.com/ocornut/imgui): host interface and performance display.
 - [toml++](https://github.com/marzer/tomlplusplus): configuration files.
-- [miniz](https://github.com/richgel999/miniz): ZIP imports.
+- [miniz](https://github.com/richgel999/miniz): ZIP imports and language resource decompression.
+- [XZ Embedded](https://github.com/tukaani-project/xz-embedded): mod package decompression.
+- [Lua](https://www.lua.org/): mod routine scripts.
 - [xemu](https://xemu.app/), [Cxbx-Reloaded](https://github.com/Cxbx-Reloaded/Cxbx-Reloaded), and [nxdk](https://github.com/XboxDev/nxdk): behavior and ABI references.
+- [OAleex Traduções](https://oaleextraducoes.com/posts/2023/10/Mortal-Kombat-Shaolin-Monks/mortal-kombat-shaolin-monks-xbox/): translation and dubbing. See the [contributors](docs/TRANSLATION_CREDITS.md).
 
 See [BUILDING.md](docs/BUILDING.md) to build from source, or [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) to report a problem.
 

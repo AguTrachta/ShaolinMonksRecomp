@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import zipfile
-from recomp_game_fixture import game_files, write_game_folder, write_game_image
+from recomp_game_fixture import game_files, write_game_folder, write_game_image, write_zip64_offsets
 
 
 def main():
@@ -36,6 +36,11 @@ def main():
 
         run(game, register=True)
         saved = (data / 'game-source.toml').read_bytes()
+        zip64 = root / 'zip64-offsets.zip'
+        write_zip64_offsets(zip64, files)
+        run(zip64)
+        write_zip64_offsets(zip64, files, invalid_offset=True)
+        run(zip64, 3, 'ZIP')
         for name, payload in files.items():
             if name == 'default.xbe':
                 continue

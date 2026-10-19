@@ -1,11 +1,12 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <windows.h>
+#include "platform_compat.h"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
 #include "launcher_settings.h"
+#include "mods/languages.h"
 
 namespace shaolin::launcher {
 Settings Read(const toml::table& table) {
@@ -14,7 +15,6 @@ Settings Read(const toml::table& table) {
     s.display_mode = table["display_mode"].value_or(s.display_mode);
     s.width = table["width"].value_or(s.width); s.height = table["height"].value_or(s.height);
     s.render_percent = table["render_percent"].value_or(s.render_percent);
-    s.fps_cap = table["fps_cap"].value_or(s.fps_cap);
     s.aniso = table["anisotropic_filtering"].value_or(s.aniso);
     s.master_volume = table["master_volume"].value_or(s.master_volume);
     s.vsync = table["vsync"].value_or(s.vsync); s.show_fps = table["show_fps"].value_or(s.show_fps);
@@ -41,7 +41,7 @@ Settings Read(const toml::table& table) {
 toml::table Merge(toml::table table, const Settings& s) {
     table.insert_or_assign("language", s.language); table.insert_or_assign("display_mode", s.display_mode);
     table.insert_or_assign("width", s.width); table.insert_or_assign("height", s.height);
-    table.insert_or_assign("render_percent", s.render_percent); table.insert_or_assign("fps_cap", s.fps_cap);
+    table.insert_or_assign("render_percent", s.render_percent); table.insert_or_assign("fps_cap", FrameRate);
     table.insert_or_assign("anisotropic_filtering", s.aniso); table.insert_or_assign("master_volume", s.master_volume);
     table.insert_or_assign("vsync", s.vsync); table.insert_or_assign("show_fps", s.show_fps);
     toml::table c, b;
@@ -62,12 +62,11 @@ toml::table Merge(toml::table table, const Settings& s) {
     return table;
 }
 bool Validate(const Settings& s, std::string& error) {
-    if (std::find(languages.begin(), languages.end(), s.language) == languages.end()) error = "Select one of the five game languages.";
+    if (!mods::ValidLanguageCode(s.language)) error = "Select a valid game language.";
     else if (s.display_mode != "windowed" && s.display_mode != "borderless" && s.display_mode != "fullscreen") error = "Select a display mode.";
     else if ((s.width == 0) != (s.height == 0) || s.width < 0 || s.height < 0 || s.width > 16384 || s.height > 16384 ||
              (s.width && (s.width < 320 || s.height < 240))) error = "Set both resolution fields to zero, or select a resolution from 320 x 240 to 16384 x 16384.";
     else if (s.render_percent < 25 || s.render_percent > 400) error = "Render scale must be from 25 to 400 percent.";
-    else if (s.fps_cap < 0 || s.fps_cap > 1000) error = "The FPS limit must be from 0 to 1000. Zero disables the limit.";
     else if (s.aniso != 0 && s.aniso != 2 && s.aniso != 4 && s.aniso != 8 && s.aniso != 16) error = "Select an anisotropic filtering level.";
     else if (s.master_volume < 0 || s.master_volume > 100) error = "Master volume must be from 0 to 100 percent.";
     else if (s.mouse.sensitivity < 1 || s.mouse.sensitivity > 300) error = "Mouse sensitivity must be from 1 to 300 percent.";
@@ -92,8 +91,15 @@ bool Write(const std::filesystem::path& path, const toml::table& table, std::str
         stream << table << '\n'; stream.flush();
         if (!stream) throw std::runtime_error("Cannot write the settings file.");
         stream.close();
+#ifdef _WIN32
         if (!MoveFileExW(temporary.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
             throw std::runtime_error("Cannot replace the settings file. Your previous settings remain unchanged.");
+#else
+        // rename replaces atomically; a directory destination fails and stays intact.
+        std::error_code replaced;
+        std::filesystem::rename(temporary, path, replaced);
+        if (replaced) throw std::runtime_error("Cannot replace the settings file. Your previous settings remain unchanged.");
+#endif
         return true;
     } catch (const std::exception& exception) {
         error = exception.what();
@@ -102,10 +108,10 @@ bool Write(const std::filesystem::path& path, const toml::table& table, std::str
     }
 }
 unsigned GameLanguage(const std::string& language) {
-    if (language == "fr") return 1;
-    if (language == "de") return 3;
-    if (language == "es") return 4;
-    if (language == "it") return 2;
+    if (mods::SameLanguage(language,"fr")) return 1;
+    if (mods::SameLanguage(language,"de")) return 3;
+    if (mods::SameLanguage(language,"es")) return 4;
+    if (mods::SameLanguage(language,"it")) return 2;
     return 0;
 }
 }

@@ -16,7 +16,7 @@ def main():
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     text = (args.sdk / "runtime/app/main.cpp").read_text(encoding="utf-8")
-    text = '#include "host.h"\n#include "launcher.h"\n#include "window.h"\n#include "performance_overlay.h"\n#include "runtime_paths.h"\n#include <cstdlib>\n' + text
+    text = '#include "host.h"\n#include "launcher.h"\n#include "language_pack.h"\n#include "window.h"\n#include "performance_overlay.h"\n#include "runtime_paths.h"\n#include <cstdlib>\n' + text
     text = replace_once(text, '#include <windows.h>', '#include <windows.h>\n#include <shobjidl.h>')
     text = replace_once(text, 'auto dir = ExeDir() / "CrashDumps";', 'auto dir = shaolin::paths::Crashes();')
     text = replace_once(text, 'logx::Init((app::ExeDir() / "logs").string(), log, relaunched);',
@@ -47,7 +47,7 @@ def main():
     text = replace_once(text, "int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {", "int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {\n    const int configured = shaolin::Configure();\n    if (configured) return configured == 1 ? 0 : configured;")
     text = replace_once(text, "app::Load();", "app::Load();\n    if (shaolin::options.background) {\n        app::Get().display_mode = app::DisplayMode::Windowed;\n        app::Get().width = 640; app::Get().height = 480;\n    }\n    shaolin::StartWatchdog();")
     text = replace_once(text, '    shaolin::StartWatchdog();',
-        '    if (shaolin::options.configure_only || (!shaolin::options.background && !shaolin::options.validate_disc && !shaolin::options.setup && !shaolin::options.no_launcher)) {\n'
+        '    if (shaolin::options.configure_only || (!shaolin::options.background && !shaolin::options.validate_disc && !shaolin::options.validate_language_pack && !shaolin::options.setup && !shaolin::options.no_launcher)) {\n'
         '        if (!shaolin::launcher::Show()) return 0;\n'
         '    }\n    shaolin::StartWatchdog();')
     text = replace_once(text, '        app::Get().width = 640; app::Get().height = 480;',
@@ -57,6 +57,14 @@ def main():
         '            if (percent >= 25 && percent <= 400) app::Get().render_percent = percent;\n'
         '        }')
     text = replace_once(text, "if (!app::FindGame(game)) return 1;", "if (!shaolin::options.host_test && !app::FindGame(game)) return 3;\n    if (shaolin::options.validate_disc) { std::printf(\"{\\\"valid\\\":true}\\n\"); return 0; }")
+    text = replace_once(text, '    if (shaolin::options.validate_disc) {',
+        '    if (shaolin::options.validate_language_pack) {\n'
+        '        const auto& stats = shaolin::language::Statistics();\n'
+        '        std::printf("{\\"language_pack_valid\\":true,\\"direct_loading\\":true,\\"resources\\":%u,\\"voice_names\\":%u,\\"voice_occurrences\\":%u,\\"movies\\":%u}\\n",\n'
+        '            stats.archive.resources, stats.archive.voice_names, stats.archive.voice_occurrences, stats.movies);\n'
+        '        return 0;\n'
+        '    }\n'
+        '    if (shaolin::options.validate_disc) {')
     text = replace_once(text, '    wc.hbrBackground =',
         '    wc.hIconSm = static_cast<HICON>(LoadImageW(inst, MAKEINTRESOURCEW(1), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_SHARED));\n    wc.hbrBackground =')
     text = replace_once(text, '    RegisterClassExW(&wc);',
@@ -78,11 +86,16 @@ def main():
     settings = (args.sdk / "runtime/app/settings.cpp").read_text(encoding="utf-8")
     settings = '#include "launcher.h"\n#include "runtime_paths.h"\n' + settings
     settings = replace_once(settings, 'return ExeDir() / kGame.settings;', 'return shaolin::paths::Config();')
+    # Linux: the desktop size comes from the SDL platform layer.
+    settings = replace_once(settings, '#include <windows.h>\n', '#ifdef _WIN32\n#include <windows.h>\n#endif\n')
+    settings = replace_once(settings, 'Mode Desktop() {\n', 'Mode PlatformDesktop();\nMode Desktop() {\n#ifndef _WIN32\n    return PlatformDesktop();\n#else\n')
+    settings = replace_once(settings, '    return {uint32_t(GetSystemMetrics(SM_CXSCREEN)), uint32_t(GetSystemMetrics(SM_CYSCREEN))};\n}',
+        '    return {uint32_t(GetSystemMetrics(SM_CXSCREEN)), uint32_t(GetSystemMetrics(SM_CYSCREEN))};\n#endif\n}')
     settings = replace_once(settings, '    std::ofstream f(File());\n    f << Table() << "\\n";',
         '    std::string error;\n    if (!shaolin::launcher::Persist(Table(), error)) LOGE("Cannot save settings: %s", error.c_str());')
     (args.out / "settings.cpp").write_text(settings, encoding="utf-8")
     files = (args.sdk / "runtime/kernel/files.cpp").read_text(encoding="utf-8")
-    files = '#ifndef NOMINMAX\n#define NOMINMAX\n#endif\n#include <windows.h>\n#undef CreateSymbolicLink\n#include "save_storage.h"\n#include "runtime_paths.h"\n#include <cerrno>\n' + files
+    files = '#ifdef _WIN32\n#ifndef NOMINMAX\n#define NOMINMAX\n#endif\n#include <windows.h>\n#undef CreateSymbolicLink\n#endif\n#include "save_storage.h"\n#include "runtime_paths.h"\n#include "language_pack.h"\n#include <cerrno>\n' + files
     for partition in ("X", "Y", "Z"):
         files = replace_once(files, f'= d / "{partition}";', f'= shaolin::paths::Cache() / "xbox/{partition}";')
     files = replace_once(files, '    bool delete_on_close = false;', '    bool delete_on_close = false;\n    bool backed_up = false;')
@@ -181,6 +194,12 @@ def main():
     files = files.replace('W64(out, 0x100000);', 'W64(out, capacity);').replace('W64(out + 8, 0x80000);', 'W64(out + 8, available);').replace('W64(out + 0x10, 0x80000);', 'W64(out + 0x10, free);')
     files = replace_once(files, '    bool dir = false;', '    bool read_only = false;\n    bool dir = false;')
     files = replace_once(files, '    bool disc = false;', '    bool read_only = false;\n    bool disc = false;')
+    files = replace_once(files, '    if (best->first == kCdRom)\n',
+        '    if (best->first == kCdRom) {\n'
+        '        const auto overlay = shaolin::language::OverlayFile(parts);\n'
+        '        if (overlay) return {{}, true, false, nullptr, overlay};\n'
+        '    }\n'
+        '    if (best->first == kCdRom)\n')
     files = replace_once(files, 'return {{}, true, disc->Find(parts)};', 'return {{}, true, true, disc->Find(parts)};')
     files = replace_once(files, '    return {MatchCase(best->second, parts).string()};', '''    const bool read_only = best->first == kCdRom;
     if (read_only) {
@@ -188,11 +207,24 @@ def main():
         for (const auto& part : parts) {
             if (part == "..") return {};
             current /= part;
+#ifdef _WIN32
             if (GetFileAttributesW(current.c_str()) != INVALID_FILE_ATTRIBUTES &&
                 (GetFileAttributesW(current.c_str()) & FILE_ATTRIBUTE_REPARSE_POINT)) return {};
+#else
+            std::error_code link_error;
+            if (std::filesystem::is_symlink(current, link_error)) return {};
+#endif
         }
     }
     return {MatchCase(best->second, parts).string(), read_only};''')
+    files = replace_once(files,
+        '    if (f->entry) FillNetworkInfo(out + 8, *f->disc_entries[i]);\n'
+        '    else FillNetworkInfo(out + 8, f->entries[i].path());',
+        '    const auto child = (f->read_only || f->entry) ? Resolve(f->xbox + "\\\\" + fname, 0) : Target{};\n'
+        '    if (child.virtual_file) FillNetworkInfo(out + 8, 0, child.virtual_file->Size(), false);\n'
+        '    else if (child.read_only && !child.disc && !child.host.empty()) FillNetworkInfo(out + 8, child.host);\n'
+        '    else if (f->entry) FillNetworkInfo(out + 8, *f->disc_entries[i]);\n'
+        '    else FillNetworkInfo(out + 8, f->entries[i].path());')
     files = replace_once(files, '        fs::create_directories(v, ec);', '        if (k != kCdRom) fs::create_directories(v, ec);')
     files = replace_once(files, '    bool exists = fs::exists(host, ec);', '''    bool exists = fs::exists(host, ec);
     if (t.read_only && (!exists || (disposition != 1 && disposition != 3) || (options & 0x1000))) {
@@ -217,9 +249,73 @@ def main():
         '    const auto destination = Resolve(ReadAnsiString(R32(a[0] + 4)), R32(a[0]));\n    if (destination.read_only || destination.disc) return kAccessDenied;\n    std::string host = destination.host;')
     files = replace_once(files, '    if (f && f->fp) {\n        std::lock_guard<std::mutex> lock(f->io);',
         '    if (f && (f->read_only || f->entry)) status = kSuccess;\n    else if (f && f->fp) {\n        std::lock_guard<std::mutex> lock(f->io);')
+    files = replace_once(files, '    fs::path host;',
+        '    std::shared_ptr<const shaolin::language::VirtualFile> virtual_file;\n    fs::path host;')
+    files = replace_once(files, '    const Disc::Entry* entry = nullptr;  // there: the file or folder, null when missing',
+        '    const Disc::Entry* entry = nullptr;  // there: the file or folder, null when missing\n'
+        '    std::shared_ptr<const shaolin::language::VirtualFile> virtual_file;')
+    files = replace_once(files, 'uint32_t OpenOnDisc(', '''uint32_t OpenVirtual(const Target& target, const std::string& name, uint32_t handle_out,
+                     uint32_t iosb, uint32_t disposition, uint32_t options) {
+    const auto status = (disposition != 1 && disposition != 3) || (options & 0x1000) ? kAccessDenied :
+                        options & 1 ? kNotADirectory : kSuccess;
+    if (status) { IoStatus(iosb, status, 0); return status; }
+    auto file = std::make_shared<File>();
+    file->virtual_file = target.virtual_file; file->read_only = true; file->xbox = Normalize(name);
+    file->host = MountedDisc() ? MountedDisc()->Path() : g_devices.at(kCdRom) / "virtual";
+    W32(handle_out, NewHandle(file)); IoStatus(iosb, kSuccess, 1);
+    LOG_FIRST(40, "open direct language file %s", name.c_str());
+    return kSuccess;
+}
+
+uint32_t OpenOnDisc(''')
+    files = replace_once(files, '    if (t.disc) return OpenOnDisc(t.entry, name, handle_out, iosb, disposition, options);',
+        '    if (t.virtual_file) return OpenVirtual(t, name, handle_out, iosb, disposition, options);\n'
+        '    if (t.disc) return OpenOnDisc(t.entry, name, handle_out, iosb, disposition, options);')
+    files = replace_once(files, '    if (t.disc) return OpenOnDisc(t.entry, name, handle_out, iosb, 1, options);',
+        '    if (t.virtual_file) return OpenVirtual(t, name, handle_out, iosb, 1, options);\n'
+        '    if (t.disc) return OpenOnDisc(t.entry, name, handle_out, iosb, 1, options);')
+    files = replace_once(files, '    Target t = Resolve(xbox_path, 0);\n    if (t.disc) {',
+        '    Target t = Resolve(xbox_path, 0);\n'
+        '    if (t.virtual_file) {\n'
+        '        out.resize(size_t(t.virtual_file->Size())); size_t count;\n'
+        '        return t.virtual_file->Read(0, out, count) && count == out.size();\n'
+        '    }\n    if (t.disc) {')
+    files = replace_once(files, 'if (!f || (!f->fp && !f->entry))', 'if (!f || (!f->fp && !f->entry && !f->virtual_file))')
+    files = replace_once(files, '        size_t done = f->entry ?', '''        size_t done = 0;
+        if (f->virtual_file) {
+            if (!f->virtual_file->Read(pos + n, std::span<uint8_t>(static_cast<uint8_t*>(HostPtr(at)), chunk), done))
+                return Finish(*f, shaolin::storage::kIoError, n, event, apc, apc_ctx, iosb);
+        } else done = f->entry ?''')
+    files = replace_once(files, 'uint64_t size = f->dir ? 0 : f->entry ?',
+        'uint64_t size = f->dir ? 0 : f->virtual_file ? f->virtual_file->Size() : f->entry ?')
+    files = replace_once(files, 'uint64_t t = f->entry ?', 'uint64_t t = f->virtual_file ? 0 : f->entry ?')
+    files = replace_once(files, '            if (f->entry) FillNetworkInfo(out, *f->entry);',
+        '            if (f->virtual_file) FillNetworkInfo(out, 0, f->virtual_file->Size(), false);\n'
+        '            else if (f->entry) FillNetworkInfo(out, *f->entry);')
+    files = replace_once(files, '    if (t.disc ? !t.entry : t.host.empty() || !fs::exists(t.host, ec)) {',
+        '    if (!t.virtual_file && (t.disc ? !t.entry : t.host.empty() || !fs::exists(t.host, ec))) {')
+    files = replace_once(files, '    if (t.disc) FillNetworkInfo(a[1], *t.entry);',
+        '    if (t.virtual_file) FillNetworkInfo(a[1], 0, t.virtual_file->Size(), false);\n'
+        '    else if (t.disc) FillNetworkInfo(a[1], *t.entry);')
     (args.out / "files.cpp").write_text(files, encoding="utf-8")
     boot = (args.sdk / "runtime/kernel/boot.cpp").read_text(encoding="utf-8")
-    boot = '#include "host.h"\n#include "runtime_paths.h"\n' + boot
+    boot = '#include "host.h"\n#include "runtime_paths.h"\n#include "language_pack.h"\n#include "mods/runtime.h"\n' + boot
+    boot = replace_once(boot, '    if (app::kGame.loaded) app::kGame.loaded();',
+        '    std::string language_error;\n'
+        '    if (!shaolin::language::ApplyFonts(std::span<uint8_t>(g_base, X86ImageEnd), language_error)) {\n'
+        '        LOGE("Language font setup failed: %s", language_error.c_str());\n'
+        '        return false;\n'
+        '    }\n'
+        '    if (shaolin::language::CreditsEnabled()) LOGR("Translated fonts applied to guest memory");\n'
+        '    if (app::kGame.loaded) app::kGame.loaded();')
+    boot = replace_once(boot,'    dispatch::Init();',
+        '    dispatch::Init();\n'
+        '    std::string mod_error;\n'
+        '    if (!shaolin::mods::StartRoutines(g_base, mod_error)) {\n'
+        '        LOGE("Mod routine setup failed: %s", mod_error.c_str());\n'
+        '        shaolin::paths::ReportError(std::filesystem::path(std::u8string(mod_error.begin(), mod_error.end())).wstring());\n'
+        '        return false;\n'
+        '    }')
     boot = replace_once(boot, 'return g_launch_file.substr(0, g_launch_file.find_last_of("/\\\\") + 1) + "display.bin";',
         'return (shaolin::paths::Cache() / "display.bin").string();')
     boot = replace_once(boot, '    std::_Exit(code);',
@@ -260,7 +356,7 @@ def main():
     d3d = (args.sdk / "runtime/xdk/d3d8.cpp").read_text(encoding="utf-8")
     d3d = '#include "sfd_lock_compat.h"\n#include "sfd_filter_compat.h"\n#include "vblank_compat.h"\n#include <array>\nstatic std::array<uint32_t, 13> g_shaolin_present{};\n' + d3d
     # cstdint must precede the snapshot declaration when this TU is compiled alone.
-    d3d = '#ifndef NOMINMAX\n#define NOMINMAX\n#endif\n#include <windows.h>\n#include <cstdint>\n#include "core/diag.h"\n' + d3d
+    d3d = '#include "platform_compat.h"\n#include <cstdint>\n#include "core/diag.h"\n' + d3d
     d3d = replace_once(d3d, '    if (!h) h = 480;\n', '    if (!h) h = 480;\n    std::memcpy(g_shaolin_present.data(), HostPtr(pp), sizeof(g_shaolin_present));\n    g_shaolin_present[0] = w; g_shaolin_present[1] = h; g_shaolin_present[3] = count;\n')
     d3d = replace_once(d3d, 'HLE_WRAP(Lock2DSurface, 6) {\n    uint32_t res = a[0];',
         'HLE_WRAP(Lock2DSurface, 6) {\n    uint32_t res = a[0];\n'
@@ -402,6 +498,23 @@ def main():
         '            CapSave({.res=f->res.Get(), .state=&f->state, .fmt=f->fmt, .w=f->w, .h=f->h, .mul=f->range}, "final_native");\n'
         '    }')
     (args.out / "d3d12.cpp").write_text(backend, encoding="utf-8")
+    # Linux builds the render thread from this copy; Windows still compiles the SDK file.
+    threaded = (args.sdk / "runtime/gpu/render_thread.cpp").read_text(encoding="utf-8")
+    threaded = replace_once(threaded, '#include <windows.h>\n', '#ifdef _WIN32\n#include <windows.h>\n#else\n#include <pthread.h>\n#endif\n')
+    threaded = replace_once(threaded,
+        '        using SetDescription = HRESULT(WINAPI*)(HANDLE, PCWSTR);\n'
+        '        if (auto set = reinterpret_cast<SetDescription>(\n'
+        '                reinterpret_cast<void*>(GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadDescription"))))\n'
+        '            set(GetCurrentThread(), L"render");\n',
+        '#ifdef _WIN32\n'
+        '        using SetDescription = HRESULT(WINAPI*)(HANDLE, PCWSTR);\n'
+        '        if (auto set = reinterpret_cast<SetDescription>(\n'
+        '                reinterpret_cast<void*>(GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadDescription"))))\n'
+        '            set(GetCurrentThread(), L"render");\n'
+        '#else\n'
+        '        pthread_setname_np(pthread_self(), "render");\n'
+        '#endif\n')
+    (args.out / "render_thread.cpp").write_text(threaded, encoding="utf-8")
     vertex = (args.sdk / "runtime/gpu/vertex.cpp").read_text(encoding="utf-8")
     vertex = replace_once(vertex,
         '    return !(s.vs_handle & 1) && (s.vs_handle & 0xE) == 0x4;',

@@ -1,7 +1,7 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <windows.h>
+#include "platform_compat.h"
 #include <algorithm>
 #include <cstdio>
 #include <cwctype>
@@ -25,6 +25,32 @@ namespace {
 std::wstring Lower(std::wstring s) {
     std::transform(s.begin(), s.end(), s.begin(), [](wchar_t c) { return std::towlower(c); });
     return s;
+}
+// An Xbox path (backslashes, any case) under a host folder. Linux file
+// systems are case-sensitive, so each component is matched like Windows does.
+fs::path HostPath(const fs::path& root, std::string_view name) {
+#ifdef _WIN32
+    return root / std::string(name);
+#else
+    fs::path current = root;
+    size_t start = 0;
+    while (start <= name.size()) {
+        const size_t end = std::min(name.find('\\', start), name.size());
+        const std::string part(name.substr(start, end - start));
+        start = end + 1;
+        if (part.empty()) continue;
+        fs::path next = current / part;
+        std::error_code error;
+        if (!fs::exists(next, error)) {
+            const auto wanted = Lower(fs::path(part).wstring());
+            for (fs::directory_iterator it(current, error), last; !error && it != last; it.increment(error))
+                if (Lower(it->path().filename().wstring()) == wanted) { next = it->path(); break; }
+        }
+        current = next;
+        if (end == name.size()) break;
+    }
+    return current;
+#endif
 }
 bool Image(const fs::path& path) {
     const auto extension = Lower(path.extension().wstring());
@@ -50,7 +76,7 @@ void VerifyRequiredFiles(const Source& source, const kernel::Disc& disc) {
         };
         uint8_t header[4]{}, tail[4]{};
         if (source.folder) {
-            const auto path = source.path / file.name;
+            const auto path = HostPath(source.path, file.name);
             std::error_code error;
             if (!fs::is_regular_file(path, error)) {
                 if (error && error != std::errc::no_such_file_or_directory) fail("Cannot read required game file: ");
@@ -157,7 +183,11 @@ size_t Extract(void* opaque, mz_uint64 offset, const void* data, size_t size) {
 }
 Source Import(const fs::path& input, fs::path& staging, const Progress& progress) {
     Zip zip;
+#ifdef _WIN32
     zip.file = _wfopen(input.c_str(), L"rb");
+#else
+    zip.file = std::fopen(input.c_str(), "rb");
+#endif
     if (!zip.file || !mz_zip_reader_init_cfile(&zip.reader, zip.file, 0, 0))
         throw std::runtime_error("Cannot open this ZIP. Use a ZIP without encryption or select the extracted game files.");
     zip.open = true;

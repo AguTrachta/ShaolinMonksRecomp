@@ -1,24 +1,60 @@
-Shaolin Monks Recomp - native Windows port by static recompilation (Direct3D 12)
+Shaolin Monks Recomp
+A PC port of Mortal Kombat: Shaolin Monks
 
-The game is not included. Run ShaolinMonksRecomp.exe and select your own copy of
-the original USA/Europe Xbox release of Mortal Kombat: Shaolin Monks. Setup accepts
-ISO or XISO images (including .xiso.iso), ZIP files, or a complete extracted game
-folder containing default.xbe.
+Requirements
 
-ISO and XISO images are read directly. Keep the selected image or game folder
-available. ZIP contents are imported once into:
-%LOCALAPPDATA%\Shaolin Monks Recomp\game
+- An x64 CPU with SSE4.2 and POPCNT.
+- A Direct3D 12 or Vulkan 1.3 GPU.
+- Vulkan 1.2 requires dynamic rendering.
 
-Requires Windows 10 version 1903 or later, an x64 CPU with SSE4.2 and POPCNT,
-and a GPU with Direct3D 12 support.
+Packages and updates
 
-Saves: Windows Saved Games folder, under Shaolin Monks\hdd.
-Settings, logs, caches, and crash reports: %LOCALAPPDATA%\Shaolin Monks Recomp
-If an error occurs, the message identifies the session log. Closing the message
-opens the application data folder.
+Windows releases use .zip. Linux releases use .tar.gz.
+Download new versions from:
+https://github.com/OAleex/ShaolinMonksRecomp/releases
 
-F9 toggles FPS and frame time. F10 releases or captures the mouse pointer.
+Extract each new version into a separate folder.
+Keep your configured data and saves folders.
 
-Source, controls, and updates: https://github.com/OAleex/ShaolinMonksRecomp
-Code license: GPL-2.0-or-later. See licenses\LICENSE.txt for the license text.
-Dependency licenses and notices are in the licenses folder.
+Getting started
+
+1. Extract the release package for your system.
+2. Start the executable in the extracted folder.
+3. Select your original USA/Europe Xbox game.
+4. Select Save and Play in the launcher.
+
+Setup accepts ISO, XISO, ZIP, an extracted game folder, or default.xbe.
+Keep the selected image or complete game folder available.
+
+Mods
+
+Install and manage mods in the Mods tab.
+It checks for mod updates when the launcher opens.
+New mods and languages appear from the catalog.
+Updates require selecting Update in Mods.
+Mod packages use .tar.xz. Install a downloaded package through Install from file...
+Select a language to install or enable its required pack when needed.
+Accept the prompt to follow progress in Mods. The language stays selected.
+Translation and voice cast credits are in the pack's CREDITS.md.
+Mods that replace the same resources cannot be enabled together.
+
+Controls
+
+F9 shows or hides FPS and frame time.
+F10 releases or captures the mouse pointer.
+The Controls and Mouse tabs contain input settings.
+
+Folders and support
+
+Open Files and support to view your data and saves folders.
+Close other copies of the game and launcher before changing a folder.
+Choose an empty destination. Save your settings. Restart the launcher to move the files.
+Include the session log and steps to reproduce a problem when reporting an error.
+
+Project repository, requirements and support:
+https://github.com/OAleex/ShaolinMonksRecomp
+
+Code license: GPL-2.0-or-later. See licenses/LICENSE.txt.
+Dependency licenses and notices: licenses/
+The game is not included.
+The project license does not grant rights to game assets.

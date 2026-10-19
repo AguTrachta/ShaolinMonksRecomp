@@ -1,7 +1,7 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <windows.h>
+#include "platform_compat.h"
 #include <SDL3/SDL.h>
 #include <toml++/toml.hpp>
 #include <algorithm>
@@ -28,9 +28,15 @@ struct Slot {
 std::mutex lock;
 std::array<Slot,4> slots;
 bool initialized=false, focused=false;
-DWORD owner_thread=0;
+unsigned long owner_thread=0;
+#ifdef _WIN32
 HWND game_window=nullptr;
+#else
+void* game_window=nullptr;  // SDL_Window; the Linux host calls Update from its event loop
+#endif
+#ifdef _WIN32
 constexpr UINT_PTR timer=0x534D4354;
+#endif
 uint64_t last_device_scan=0;
 float deadzone=.15f;
 bool rumble_enabled=true;
@@ -223,7 +229,9 @@ void Update() {
 }
 void Shutdown() {
     if (!initialized || GetCurrentThreadId()!=owner_thread) return;
+#ifdef _WIN32
     if (game_window) KillTimer(game_window,timer);
+#endif
     std::lock_guard guard(lock);
     for (auto& s:slots) if (s.device) {
         if (s.sent[0]||s.sent[1]) SDL_RumbleGamepad(s.device,0,0,0);
@@ -236,12 +244,21 @@ void Shutdown() {
 void Window(void* hwnd) {
     mouse::Window(hwnd);
     if (!Enabled() || !initialized) return;
+#ifndef _WIN32
+    game_window=hwnd;
+    SetFocused(true);
+#else
     game_window=static_cast<HWND>(hwnd);
     SetFocused(options.background || GetForegroundWindow()==game_window);
     if (!SetTimer(game_window,timer,8,nullptr)) LOGE("input: controller timer failed");
+#endif
     Update();
 }
 bool Message(void* hwnd,uint32_t message,uintptr_t wp,intptr_t lp,intptr_t* result) {
+#ifndef _WIN32
+    (void)hwnd;(void)message;(void)wp;(void)lp;(void)result;
+    return false;  // Linux delivers SDL events through linux_input.cpp
+#else
     if (mouse::Message(hwnd, message, wp, lp, result)) return true;
     // Fixture messages are accepted only by our own hidden diagnostic window.
     // Physical backends are disabled before SDL initialization in this mode.
@@ -275,6 +292,7 @@ bool Message(void* hwnd,uint32_t message,uintptr_t wp,intptr_t lp,intptr_t* resu
         if (message==WM_DESTROY) Shutdown();
     }
     return keyboard::Message(hwnd,message,wp,lp,result);
+#endif
 }
 }
 namespace input {

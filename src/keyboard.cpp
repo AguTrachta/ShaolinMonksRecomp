@@ -1,7 +1,11 @@
+#ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
 #include <windows.h>
+#else
+#include "linux/virtual_keys.h"
+#endif
 #include <algorithm>
 #include <bitset>
 #include <mutex>
@@ -28,6 +32,15 @@ bool Mapped(unsigned key) {
 }
 }
 
+void Key(unsigned virtual_key, bool down) {
+    std::lock_guard guard(lock);
+    if (virtual_key < keys.size() && Mapped(virtual_key)) keys.set(virtual_key, down);
+}
+void ReleaseAll() {
+    std::lock_guard guard(lock);
+    keys.reset();
+}
+#ifdef _WIN32
 bool Message(void*, uint32_t msg, uintptr_t wp, intptr_t, intptr_t* result) {
     std::lock_guard guard(lock);
     if (msg == WM_KILLFOCUS || (msg == WM_ACTIVATE && LOWORD(wp) == WA_INACTIVE)) {
@@ -42,6 +55,9 @@ bool Message(void*, uint32_t msg, uintptr_t wp, intptr_t, intptr_t* result) {
     }
     return false;
 }
+#else
+bool Message(void*, uint32_t, uintptr_t, intptr_t, intptr_t*) { return false; }
+#endif
 
 void Poll(int port, input::Pad& pad) {
     if (port != controller::KeyboardPort()) return;

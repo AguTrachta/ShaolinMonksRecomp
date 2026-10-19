@@ -1,26 +1,21 @@
 # Controllers
 
 The port uses SDL3 Gamepad for Xbox, PlayStation, and other mapped controllers.
-Pair your Bluetooth controller in Windows before use. USB uses the same input mapping.
+Pair a Bluetooth controller in the system settings before use.
 The port detects connections and disconnections while it runs.
-Generic controller support depends on the Windows driver and the SDL mapping.
+Generic controller support depends on the system driver and the SDL mapping.
 The game continues to display its original Xbox button prompts.
 
 ## Player assignment
 
-In single-player mode, the keyboard and first controller both control player 1.
-You can alternate between them during play.
+In single-player mode, the keyboard, mouse and first controller control player 1.
 
-When you enter Ko-op with a keyboard and one controller, the keyboard controls player 1.
-The controller controls player 2.
+With one controller at Ko-op entry, the keyboard and mouse control player 1. The controller controls player 2.
 With two controllers connected when you enter Ko-op, the controllers control players 1 and 2.
-The keyboard remains inactive for that assignment.
+The keyboard and mouse remain inactive for that assignment.
 Assignments remain stable during disconnection so the other player keeps the same character.
 
-The keyboard alone supplies one input source.
-Connect a controller to provide the second source for local Ko-op.
-The port advertises available inputs to the original menu before character selection.
-An available second source does not copy player 1 commands to player 2.
+Connect a controller for local Ko-op with the keyboard and mouse.
 
 ## Default keyboard mapping
 
@@ -39,6 +34,7 @@ An available second source does not copy player 1 commands to player 2.
 | Shift | Left trigger |
 | E | Right trigger |
 | F9 | FPS and frame time display |
+| F10 | Release or capture the mouse pointer |
 
 ## Mouse
 
@@ -56,10 +52,11 @@ Use the Mouse tab in the launcher to set sensitivity, vertical inversion, and bu
 | Side button 2 | White |
 
 Click inside the game or use the keyboard to capture the pointer.
-The first click used to capture the pointer does not activate its game action.
-F10 releases or captures the pointer. After releasing it, you can click the title bar and window buttons.
-Alt+Tab, minimizing, and closing the game release the pointer automatically.
-Capture works in windowed, borderless, and fullscreen modes.
+The capture click does not trigger a game action.
+F10 releases or captures the pointer.
+Release the pointer to use the title bar and window buttons.
+The game releases the pointer when it loses focus, minimizes or closes.
+
 The captured pointer stays inside the game client area on the selected monitor.
 Mouse and keyboard follow the same automatic player assignment.
 Use the keyboard or controller for the original menus.
@@ -78,14 +75,11 @@ Use the keyboard or controller for the original menus.
 | L2 / R2 | Left / right trigger |
 
 Button positions follow the Xbox layout. Combat actions follow the configuration selected inside the original game.
-Use a directly recognized controller when possible.
-An external input translator can expose physical and virtual devices at the same time.
-That can appear as two controllers.
+An external input translator can expose both a physical controller and a virtual controller.
+This can create a duplicate controller assignment.
 
 ## Configuration
 
 Use the launcher to change dead zone, vibration, and button mappings.
-Player assignment follows the current game mode automatically.
-
 You can place a custom `gamecontrollerdb.txt` in the application data directory.
 The file uses the SDL mapping format. The port does not download mappings during play.

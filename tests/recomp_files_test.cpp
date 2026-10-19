@@ -11,6 +11,13 @@
 namespace shaolin { Options options; }
 
 namespace fs = std::filesystem;
+namespace shaolin::language {
+// The archive builder is covered separately; this fixture controls the DVD lookup boundary.
+static std::shared_ptr<const VirtualFile> overlay;
+std::shared_ptr<const VirtualFile> OverlayFile(const std::vector<std::string>& parts) {
+    return parts.size() == 1 && parts[0] == "asset.bin" ? overlay : nullptr;
+}
+}
 namespace kernel {
 uint8_t* g_base = nullptr;
 static std::map<uint32_t, ObjectRef>& Handles() { static std::map<uint32_t, ObjectRef> h; return h; }
@@ -94,6 +101,77 @@ int main() {
     check(dvd_directory && Call(226, {dvd_directory, 0x250, 0x1800, 1, 13}) == kernel::kAccessDenied,
           "extracted DVD directories must reject deletion");
     kernel::CloseHandle(dvd_directory);
+    const auto translated_file = root / "language-cache/asset.bin";
+    Write(translated_file, "translated-asset-with-a-different-size");
+    const auto translated_size = static_cast<uint32_t>(fs::file_size(translated_file));
+    auto virtual_file = std::make_shared<shaolin::language::VirtualFile>();
+    virtual_file->Add(0, translated_size, 0, shaolin::language::PackFileReader(translated_file));
+    virtual_file->SetSize(translated_size); virtual_file->Seal();
+    shaolin::language::overlay = virtual_file;
+    const auto translated = Open("D:\\asset.bin");
+    check(translated && Call(219, {translated, 0, 0, 0, 0x250, 0x1000, translated_size, 0}) == 0 &&
+          std::string(reinterpret_cast<char*>(kernel::HostPtr(0x1000)), translated_size) == Read(translated_file),
+          "DVD reads must use the virtual language file");
+    check(translated && Call(211, {translated, 0x250, 0x1000, 0x18, 5}) == 0 && kernel::R64(0x1008) == translated_size,
+          "Opened DVD file metadata must describe the translated file");
+    check(translated && Call(236, {translated, 0, 0, 0, 0x250, 0x1000, 1, 0}) == kernel::kAccessDenied,
+          "Virtual language files must remain read-only");
+    check(Call(210, {0x300, 0x1000}) == 0 && kernel::R64(0x1028) == translated_size,
+          "Path metadata must report the virtual file size");
+    check(Call(219, {translated, 0, 0, 0, 0x250, 0x1000, 1, 0}) == kernel::kEndOfFile,
+          "Virtual reads at EOF must return the normal guest EOF status");
+    kernel::W64(0x1800, 7);
+    check(Call(226, {translated, 0x250, 0x1800, 8, 14}) == 0 &&
+          Call(219, {translated, 0, 0, 0, 0x250, 0x1000, 10, 0}) == 0 &&
+          std::string(reinterpret_cast<char*>(kernel::HostPtr(0x1000)), 10) == Read(translated_file).substr(7, 10),
+          "Seeking a virtual handle must change subsequent implicit-offset reads");
+    std::vector<uint8_t> whole;
+    check(kernel::ReadGameFile("D:\\asset.bin", whole) &&
+          std::string(whole.begin(), whole.end()) == Read(translated_file),
+          "Whole-file reads must use the virtual source");
+    kernel::CloseHandle(translated);
+    const auto translated_directory = Open("D:\\", 1, 1);
+    check(translated_directory && Call(207, {translated_directory, 0, 0, 0, 0x250, 0x1000, 0x100, 1, 0, 1}) == 0 &&
+          kernel::R64(0x1028) == translated_size,
+          "DVD directory metadata must report the translated file size");
+    kernel::CloseHandle(translated_directory);
+    std::string image(35 * 2048, '\0');
+    const auto put32 = [&](size_t at, uint32_t value) { std::memcpy(image.data() + at, &value, 4); };
+    std::memcpy(image.data() + 32*2048, "MICROSOFT*XBOX*MEDIA", 20);
+    std::memcpy(image.data() + 32*2048 + 0x7EC, "MICROSOFT*XBOX*MEDIA", 20);
+    put32(32*2048 + 20, 33); put32(32*2048 + 24, 2048);
+    put32(33*2048 + 4, 34); put32(33*2048 + 8, 14);
+    image[33*2048 + 12] = 0x20; image[33*2048 + 13] = 9;
+    std::memcpy(image.data() + 33*2048 + 14, "asset.bin", 9);
+    std::memcpy(image.data() + 34*2048, "original-asset", 14);
+    Write(root / "fixture.iso", image);
+    auto disc = std::make_unique<kernel::Disc>();
+    check(disc->Open(root / "fixture.iso", path_error), "The synthetic Xbox disc must open");
+    kernel::MountDisc(std::move(disc));
+    const auto disc_directory = Open("D:\\", 1, 1);
+    check(disc_directory && Call(207, {disc_directory, 0, 0, 0, 0x250, 0x1000, 0x100, 1, 0, 1}) == 0 &&
+          kernel::R64(0x1028) == translated_size,
+          "Mounted-disc directory metadata must report the translated file size");
+    kernel::CloseHandle(disc_directory);
+    kernel::MountDisc(nullptr);
+    auto scattered = std::make_shared<shaolin::language::VirtualFile>();
+    std::vector<uint8_t> pattern(8192);
+    for (size_t i = 0; i < pattern.size(); ++i) pattern[i] = uint8_t(i % 251);
+    scattered->AddBytes(0, {pattern.begin(), pattern.begin() + 4090});
+    scattered->AddBytes(4090, {pattern.begin() + 4090, pattern.end()});
+    scattered->SetSize(pattern.size()); scattered->Seal();
+    shaolin::language::overlay = scattered;
+    const auto scattered_handle = Open("D:\\asset.bin");
+    kernel::W32(0x1800, 0x4000); kernel::W32(0x1808, 0x6000); kernel::W64(0x1A00, 0);
+    check(scattered_handle && Call(220, {scattered_handle, 0, 0, 0, 0x250, 0x1800, 8192, 0x1A00}) == 0 &&
+          kernel::R32(0x254) == 8192 &&
+          std::equal(pattern.begin(), pattern.begin() + 4096, static_cast<uint8_t*>(kernel::HostPtr(0x4000))) &&
+          std::equal(pattern.begin() + 4096, pattern.end(), static_cast<uint8_t*>(kernel::HostPtr(0x6000))),
+          "Scatter reads must cross virtual segments and guest pages without changing bytes");
+    kernel::CloseHandle(scattered_handle);
+    shaolin::language::overlay.reset();
+    virtual_file.reset();
+    check(Read(dvd_file) == "original-asset", "Virtual language files must preserve original DVD bytes");
     const auto file = Open("U:\\slot\\save.dat", 5);
     std::memcpy(kernel::HostPtr(0x1000), "new-progress", 12);
     check(file && Call(236, {file, 0, 0, 0, 0x250, 0x1000, 12, 0}) == 0 && Call(198, {file, 0x250}) == 0,

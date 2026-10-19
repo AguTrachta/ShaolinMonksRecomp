@@ -1,4 +1,4 @@
-#include <windows.h>
+#include "platform_compat.h"
 #include <fstream>
 #include <iostream>
 #include <cmath>
@@ -20,13 +20,25 @@ int main() {
     check(Read(Merge({}, mouse)) == mouse && mouse.mouse.sensitivity == 173 && mouse.mouse.invert_y &&
           mouse.mouse.bindings[0] == "right_trigger", "Mouse sensitivity, inversion, and button mappings must survive saving");
     std::string error;
+    check(Merge({},Settings{})["fps_cap"].value_or(0)==60,"The frame rate must be fixed at 60 FPS");
+    for(const int fps:{-1,0,29,30,45,60,61,120,1000}) {
+        const toml::table legacy{{"fps_cap",fps}};
+        const auto loaded=Read(legacy);
+        check(loaded==Settings{},"Legacy frame-rate preferences must not change launcher settings");
+        check(Merge(legacy,loaded)["fps_cap"].value_or(0)==60,"Saving legacy settings must use 60 FPS");
+    }
     check(Validate(config, error), "Valid settings must be accepted");
     config.width = 1920; config.height = 0;
     check(!Validate(config, error), "An incomplete resolution must be rejected");
     config.width = 0; config.deadzone = NAN;
     check(!Validate(config, error), "A nonfinite dead zone must be rejected");
-    config = Settings{}; config.language = "pt";
+    config = Settings{}; config.language = "bad code";
     check(!Validate(config, error), "An unavailable game language must be rejected");
+    config.language = "pt-BR";
+    check(Validate(config, error) && GameLanguage(config.language) == 0,
+          "Brazilian Portuguese must use its language pack over the English game slot");
+    config.language="ja";
+    check(Validate(config,error)&&GameLanguage(config.language)==0,"New language codes must be saved and use the translated English slot");
     check(!Validate(Read(toml::parse("[game]\nmusic_volume = 101\n")), error), "Original music volume must reject values above 100 percent");
     check(!Validate(Read(toml::parse("[game]\nversus_rounds = 2\n")), error), "Versus rounds must match an original game option");
     check(!Validate(Read(toml::parse("[mouse]\nsensitivity = 0\n")), error), "Mouse sensitivity must reject zero");

@@ -12,7 +12,7 @@ void SetDataRoot(const std::filesystem::path& root);
 bool IsSave(const std::filesystem::path& file);
 uint32_t BeforeWrite(const std::filesystem::path& file);
 bool PrepareDirectory(const std::filesystem::path& legacy, const std::filesystem::path& destination, std::string& error);
-std::filesystem::path SavedGamesRoot(std::string& error);
+std::filesystem::path SavedGamesRoot(std::string& error, bool create = true);
 class DirectoryLock {
     void* handle_ = nullptr;
 public:

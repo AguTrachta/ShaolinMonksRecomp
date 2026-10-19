@@ -1,5 +1,42 @@
 """Small synthetic game containers for import tests. The XBE stays external."""
 import struct
+import io
+import zipfile
+
+
+def write_zip64_offsets(path, files, invalid_offset=False):
+    """Use ZIP64 for an entry offset while keeping its sizes in 32-bit fields."""
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, 'w', zipfile.ZIP_STORED) as archive:
+        for name, payload in files.items():
+            archive.writestr('game/' + name, payload)
+    data = stream.getvalue()
+    end = bytearray(data[-22:])
+    assert end[:4] == b'PK\x05\x06'
+    size, start = struct.unpack_from('<II', end, 12)
+    directory = data[start:start + size]
+    records = []
+    offset = 0
+    while offset < len(directory):
+        header = bytearray(directory[offset:offset + 46])
+        assert header[:4] == b'PK\x01\x02'
+        name_size, extra_size, comment_size = struct.unpack_from('<HHH', header, 28)
+        length = 46 + name_size + extra_size + comment_size
+        payload = directory[offset + 46:offset + length]
+        if offset + length == len(directory):
+            local = struct.unpack_from('<I', header, 42)[0]
+            if invalid_offset:
+                local = len(data) + 1024
+            extra = struct.pack('<HHQ', 1, 8, local)
+            struct.pack_into('<H', header, 6, 45)
+            struct.pack_into('<H', header, 30, extra_size + len(extra))
+            struct.pack_into('<I', header, 42, 0xffffffff)
+            payload = payload[:name_size + extra_size] + extra + payload[name_size + extra_size:]
+        records.append(bytes(header) + payload)
+        offset += length
+    directory = b''.join(records)
+    struct.pack_into('<I', end, 12, len(directory))
+    path.write_bytes(data[:start] + directory + end)
 
 
 def game_files(xbe):

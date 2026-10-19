@@ -5,10 +5,20 @@ Read `README.md` for user features and `docs/BUILDING.md` for build instructions
 
 ## Project scope
 
-- Use **Shaolin Monks Recomp** as the project name and `ShaolinMonksRecomp.exe` as the application filename.
+- Use **Shaolin Monks Recomp** as the project name.
+- Use `ShaolinMonksRecomp` as the executable base name. Add `.exe` when the file format requires it.
 - The target is the supported USA/Europe Xbox release of **Mortal Kombat: Shaolin Monks**.
-- The project uses XboxXBERecomp, C++20, Direct3D 12, SDL, and a native Win32 settings launcher.
+- The project uses XboxXBERecomp, C++20, SDL and Dear ImGui.
+- The Direct3D 12 target uses XAudio2 and a Win32 launcher.
+- The Vulkan target uses SDL platform services and an ImGui launcher.
+- Select platform code at compile time. Preserve each target's behavior when changing another target.
+- Keep the SDL platform services and Vulkan renderer in `src/linux/`.
 - Keep code, identifiers, comments, messages, scripts, tests, and documentation in English.
+- Use neutral descriptions in user documentation.
+- Name an operating system only when a requirement, procedure, path or license needs the distinction.
+- Use short, direct instructions. Keep one action in each procedural sentence.
+- Avoid illustrative field values and descriptions of information already visible in the launcher.
+- Keep package formats, update instructions and project links in `resources/readme.txt`.
 - Preserve intentional localization and character-encoding tests.
 - Write comments that explain constraints or non-obvious behavior. Avoid comments that repeat the code.
 - Document implemented features. Do not describe full campaign compatibility as verified without gameplay evidence.
@@ -32,7 +42,8 @@ Read `README.md` for user features and `docs/BUILDING.md` for build instructions
 | --- | --- |
 | `src/` | Host integration, launcher, input, audio, graphics, storage, and compatibility code |
 | `config/` | Supported executable profile and ABI metadata |
-| `resources/` | Application icon, manifest, and Windows dialog resources |
+| `resources/` | Application resources and player instructions |
+| `cmake/` | Shared modules and target build configuration |
 | `tests/` | Regression tests and manual diagnostic scripts |
 | `tools/` | Build, SDK adaptation, and release scripts |
 | `docs/` | Instructions and the approved README image |
@@ -48,13 +59,24 @@ Read `README.md` for user features and `docs/BUILDING.md` for build instructions
 ## Game files, user data, and licenses
 
 - Users supply their own original game files. Do not change those files during import or testing.
-- Keep disc images, XBE files, extracted assets, and generated translations outside public source and release packages.
+- Keep original disc images, XBE files and extracted game assets outside public source and all release packages.
+- Keep generated translations outside public source and base release packages. Build mod archives through the Krypt release tool.
 - Keep saves, settings, logs, captures, crash dumps, analysis databases, and local toolchains outside public source.
 - The approved documentation image is `docs/images/shaolin-monks-recomp.png`. Preserve it unless the owner requests a replacement.
 - Preserve the project's GPL-2.0-or-later terms and all required third-party notices.
 - The project license does not license the original game's code, assets, names, or artwork.
-- Keep saves in the Windows Saved Games folder under `Shaolin Monks\hdd`.
-- Keep settings, logs, caches, crash reports, and source selection under `%LOCALAPPDATA%\Shaolin Monks Recomp`.
+- Use `paths::Root()` for application data and `paths::SaveRoot()` for the configured saves folder.
+- Preserve the system defaults listed in [Troubleshooting](docs/TROUBLESHOOTING.md#folders).
+- Keep `paths.toml` in the default data folder, even after the data folder moves.
+- Keep installed mods under `paths::Mods()` (`paths::Root()/mods`), with enabled state in `installed.toml`.
+- Apply pending folder moves in `paths::Initialize` before logs open.
+- Check copied files before removing source files.
+- Preserve prior locations when move preparation fails.
+- Update imported ZIP game paths when data moves.
+- Preserve the priority of `--data-dir`, `--save-dir` and `--portable-saves`.
+- Diagnostic and read-only path queries must not move files.
+- Prepare and check complete mod installations before replacing installed files.
+- Recover interrupted transactions before changing installed mods.
 - Preserve existing saves and settings during updates. Never delete user data as routine cleanup.
 - Inspect the exact target before cleanup. Delete only artifacts within the authorized scope.
 
@@ -63,7 +85,7 @@ Read `README.md` for user features and `docs/BUILDING.md` for build instructions
 - Preserve automatic input assignment. Do not restore manual keyboard-player or multiplayer-mode configuration variants.
 - In solo play, the keyboard, mouse, and first controller share player 1.
 - Ko-op assigns the keyboard and mouse to player 1 with one controller assigned to player 2.
-- With two controllers at Ko-op entry, the controllers occupy both player slots.
+- With two controllers at Ko-op entry, the controllers control players 1 and 2.
 - Preserve controller connection, disconnection, reconnection, and focus handling.
 - Mouse input shares the keyboard's player slot. F10 and focus loss release pointer capture.
 - Capture the pointer only while the interactive game window has focus. Keep it inside the selected monitor.
@@ -78,7 +100,7 @@ Read `README.md` for user features and `docs/BUILDING.md` for build instructions
 
 - Run automated checks in the background with isolated configuration, saves, and logs.
 - Use the existing private-desktop infrastructure for native dialog tests.
-- Do not steal focus, move or confine the user's cursor, produce audio, or poll physical controllers during automated tests.
+- Automated tests must not steal focus, move or confine the cursor, produce audio, or poll physical controllers.
 - Use synthetic fixtures for file operations. Real-disc regressions may read the external game with isolated writable data.
 - Launch a visible game only when the owner requests it.
 - Add a focused regression check when a behavior change needs one.
@@ -86,19 +108,13 @@ Read `README.md` for user features and `docs/BUILDING.md` for build instructions
 - Run the affected CTest checks after runtime changes. Run broader checks when integration risks justify them.
 - Report automated checks separately from physical-device, visual, or full-campaign validation.
 
-Run these commands from the repository root. Replace the example paths with local paths.
-
-```powershell
-python tools/build_recomp.py --xbe "C:/Games/ShaolinMonks/default.xbe" --sdk third_party/XboxXBERecomp --llvm "C:/Program Files/LLVM" --test
-ctest --test-dir build/release --output-on-failure
-python tests/recomp_package_test.py
-python tools/package_release.py --exe build/release/ShaolinMonksRecomp.exe --version 0.1.0
-```
-
-Successful builds create the Windows ZIP and `checksums.txt` automatically. Configuration-only runs skip packaging.
+Use the commands and target paths in [Building](docs/BUILDING.md).
+Successful builds create a release package and `checksums.txt` automatically.
+Configuration-only runs skip packaging.
 GitHub supplies source archives for release tags.
-The Windows package contains the executable, `readme.txt`, and `licenses/`, including the project license text.
-Keep `README.md`, `UPSTREAM.md`, `AGENTS.md`, and `docs/` in the source repository, outside the Windows package.
+Each package contains the executable, `readme.txt` and `licenses/`, including the project license text.
+The `.tar.gz` puts those files in one `ShaolinMonksRecomp` folder.
+Keep `README.md`, `UPSTREAM.md`, `AGENTS.md`, and `docs/` in the source repository, outside the packages.
 Maintain the packaged player instructions in `resources/readme.txt`. Preserve the explicit package file list.
 Do not publish packages as part of local validation.
 

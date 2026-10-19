@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -6,6 +7,11 @@
 #include <shlobj.h>
 #include <commctrl.h>
 #include <wrl/client.h>
+#else
+#include <unistd.h>
+#include "linux/linux_platform.h"
+#endif
+#include "platform_compat.h"
 #include <fstream>
 #include <cwctype>
 #include <toml++/toml.hpp>
@@ -36,8 +42,14 @@ bool RememberDisc(const fs::path& disc, std::string& error) {
         file.flush();
         if (!file) throw std::runtime_error("Cannot write the selected game path");
         file.close();
+#ifdef _WIN32
         if (!MoveFileExW(temporary.c_str(), paths::Selection().c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
             throw std::runtime_error("Cannot save the selected game path");
+#else
+        std::error_code replaced;
+        fs::rename(temporary, paths::Selection(), replaced);
+        if (replaced) throw std::runtime_error("Cannot save the selected game path");
+#endif
         return true;
     } catch (const std::exception& exception) {
         error = exception.what();
@@ -46,6 +58,16 @@ bool RememberDisc(const fs::path& disc, std::string& error) {
         return false;
     }
 }
+#ifndef _WIN32
+bool ChooseDisc(fs::path& disc) {
+    // Selecting default.xbe inside an extracted folder covers the folder case with one chooser.
+    return linux_platform::ChooseFile(disc, false, "Shaolin Monks Recomp - Select your game");
+}
+bool PrepareGame(const fs::path& input, Source& source, std::vector<uint8_t>& executable,
+                 std::string& error, bool) {
+    return PrepareSource(input, source, executable, error);
+}
+#else
 bool ChooseDisc(fs::path& disc) {
     const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     bool selected = false;
@@ -117,4 +139,5 @@ bool PrepareGame(const fs::path& input, Source& source, std::vector<uint8_t>& ex
     if (SUCCEEDED(initialized)) CoUninitialize();
     return result;
 }
+#endif
 }

@@ -64,3 +64,11 @@ freely, subject to the following restrictions:
 2. Altered source versions must be plainly marked as such, and must not be
    misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
+
+XZ Embedded v2024-12-30 (https://github.com/tukaani-project/xz-embedded)
+Copyright (C) The XZ Embedded authors and contributors.
+Distributed under 0BSD. See xz-embedded-0BSD.txt for the complete license.
+
+Lua 5.4.9 (https://www.lua.org/)
+Copyright (c) 1994-2026 Lua.org, PUC-Rio.
+Distributed under MIT. See Lua-MIT.txt for the complete license.

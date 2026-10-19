@@ -11,7 +11,7 @@ Packages and updates
 
 Windows releases use .zip. Linux releases use .tar.gz.
 Download new versions from:
-https://github.com/OAleex/ShaolinMonksRecomp/releases
+https://github.com/OAleex/ShaolinMonksRecomp/releases/latest
 
 Extract each new version into a separate folder.
 Keep your configured data and saves folders.

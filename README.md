@@ -5,9 +5,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/OAleex/ShaolinMonksRecomp/releases"><img src="https://img.shields.io/badge/Download-Releases-2563eb?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="Download Shaolin Monks Recomp"></a>
+  <a href="https://github.com/OAleex/ShaolinMonksRecomp/releases/latest"><img src="https://img.shields.io/badge/Download-Latest-2563eb?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="Download the latest release"></a>
+  <a href="https://github.com/OAleex/ShaolinMonksRecomp/releases/latest"><img src="https://img.shields.io/github/v/release/OAleex/ShaolinMonksRecomp?style=for-the-badge&amp;logo=github&amp;label=Latest%20release&amp;cacheSeconds=300" alt="Latest stable release"></a>
   <a href="https://github.com/OAleex/ShaolinMonksRecomp/releases"><img src="https://img.shields.io/github/downloads/OAleex/ShaolinMonksRecomp/total?style=for-the-badge&amp;logo=github&amp;label=Release%20downloads" alt="Total GitHub release downloads"></a>
-  <a href="https://github.com/OAleex/ShaolinMonksRecomp/releases"><img src="https://img.shields.io/github/v/release/OAleex/ShaolinMonksRecomp?include_prereleases&amp;sort=semver&amp;style=for-the-badge&amp;label=Latest%20release" alt="Latest GitHub release, including prereleases"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--2.0--or--later-blue?style=for-the-badge" alt="GPL-2.0-or-later license"></a>
 </p>
 
@@ -36,7 +36,7 @@ The maintainer reports a completed campaign playthrough. Some graphical issues r
 
 ## Getting started
 
-1. Download the [release package](https://github.com/OAleex/ShaolinMonksRecomp/releases) for your system.
+1. Download the [latest release package](https://github.com/OAleex/ShaolinMonksRecomp/releases/latest) for your system.
 2. Extract the package.
 3. Start the executable in the extracted folder.
 4. Select your ISO, XISO, ZIP, extracted game folder, or `default.xbe`.
